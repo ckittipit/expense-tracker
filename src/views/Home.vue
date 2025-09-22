@@ -1,106 +1,116 @@
 <template>
     <div class="p-6 max-w-4xl mx-auto">
-        <h1 class="text-2xl font-bold mb-4">Expense Dashboard</h1>
-
-        <button
-            @click="logout"
-            class="bg-red-500 text-white px-4 py-2 rounded mb-4"
-        >
-            Logout
-        </button>
-
-        <div class="flex items-center justify-between gap-2 my-4">
-            <div class="flex gap-4">
-                <input
-                    type="date"
-                    v-model="startDate"
-                    class="border p-2 rounded"
-                />
-                <input
-                    type="date"
-                    v-model="endDate"
-                    class="border p-2 rounded"
-                />
-            </div>
+        <div class="flex justify-between items-center mb-4">
             <div>
+                <h1 class="text-2xl font-bold mb-4">Expense Dashboard</h1>
+
                 <button
-                    class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    @click="logout"
+                    class="bg-red-500 text-white px-4 py-2 rounded mb-4"
                 >
-                    กรองข้อมูล
+                    Logout
                 </button>
+
+                <div class="flex items-center justify-between gap-2 my-4">
+                    <div class="flex gap-4">
+                        <input
+                            type="date"
+                            v-model="startDate"
+                            class="border p-2 rounded"
+                        />
+                        <input
+                            type="date"
+                            v-model="endDate"
+                            class="border p-2 rounded"
+                        />
+                    </div>
+                    <div>
+                        <button
+                            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                        >
+                            กรองข้อมูล
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ✅ Summary -->
+                <div class="bg-gray-500 p-4 rounded shadow">
+                    <h2 class="text-xl font-semibold">
+                        รวมทั้งหมด: {{ total }} บาท
+                    </h2>
+                </div>
+
+                <form
+                    @submit.prevent="addExpense"
+                    class="flex gap-2 my-4 items-center justify-between"
+                >
+                    <div class="flex items-center justify-between gap-2 flex-1">
+                        <div>
+                            <p>ชื่อรายการใช้จ่าย:</p>
+                            <input
+                                v-model="title"
+                                type="text"
+                                placeholder="Title"
+                                class="border p-2 rounded flex-1"
+                            />
+                        </div>
+                        <div>
+                            <p>จำนวนเงิน:</p>
+                            <input
+                                v-model.number="amount"
+                                type="number"
+                                placeholder="Amount"
+                                class="border p-2 rounded w-32"
+                            />
+                        </div>
+                        <div>
+                            <p>ประเภท:</p>
+                            <select
+                                v-model="type"
+                                class="border p-2 rounded mb-2"
+                            >
+                                <option>อาหารและน้ำดื่ม</option>
+                                <option>ค่าเดินทาง</option>
+                                <option>ค่าบริการรายเดือน</option>
+                                <option>อื่นๆ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="bg-green-500 text-white px-4 rounded">
+                            Add
+                        </button>
+                    </div>
+                </form>
+
+                <table class="w-full border">
+                    <thead>
+                        <tr class="bg-white text-black">
+                            <th class="border p-2">Title</th>
+                            <th class="border p-2">Amount</th>
+                            <th class="border p-2">Type</th>
+                            <th class="border p-2">Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="expense in expenses" :key="expense.id">
+                            <td class="border p-2">{{ expense.title }}</td>
+                            <td class="border p-2">{{ expense.amount }}</td>
+                            <td class="border p-2">{{ expense.type }}</td>
+                            <td class="border p-2">
+                                {{
+                                    expense.createdAt?.toDate().toLocaleString()
+                                }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="my-8">
+                <h2 class="text-xl font-bold mb-4">Expense Chart</h2>
+                <canvas id="expenseChart" width="400" height="200"></canvas>
             </div>
         </div>
-
-        <!-- ✅ Summary -->
-        <div class="bg-gray-500 p-4 rounded shadow">
-            <h2 class="text-xl font-semibold">รวมทั้งหมด: {{ total }} บาท</h2>
-        </div>
-
-        <!-- ✅ Chart -->
-        <div class="bg-white p-4 rounded shadow">
-            <canvas id="expenseChart"></canvas>
-        </div>
-
-        <form
-            @submit.prevent="addExpense"
-            class="flex gap-2 my-4 items-center justify-between"
-        >
-            <div class="flex items-center justify-between gap-2 flex-1">
-                <div>
-                    <p>ชื่อรายการใช้จ่าย:</p>
-                    <input
-                        v-model="title"
-                        type="text"
-                        placeholder="Title"
-                        class="border p-2 rounded flex-1"
-                    />
-                </div>
-                <div>
-                    <p>จำนวนเงิน:</p>
-                    <input
-                        v-model.number="amount"
-                        type="number"
-                        placeholder="Amount"
-                        class="border p-2 rounded w-32"
-                    />
-                </div>
-                <div>
-                    <p>ประเภท:</p>
-                    <select v-model="type" class="border p-2 rounded mb-2">
-                        <option>อาหารและน้ำดื่ม</option>
-                        <option>ค่าเดินทาง</option>
-                        <option>ค่าบริการรายเดือน</option>
-                        <option>อื่นๆ</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <button class="bg-green-500 text-white px-4 rounded">
-                    Add
-                </button>
-            </div>
-        </form>
-
-        <table class="w-full border">
-            <thead>
-                <tr class="bg-white text-black">
-                    <th class="border p-2">Title</th>
-                    <th class="border p-2">Amount</th>
-                    <th class="border p-2">Type</th>
-                    <th class="border p-2">Created At</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="expense in expenses" :key="expense.id">
-                    <td class="border p-2">{{ expense.title }}</td>
-                    <td class="border p-2">{{ expense.amount }}</td>
-                    <td class="border p-2">{{ expense.type }}</td>
-                    <td class="border p-2">
-                        {{ expense.createdAt?.toDate().toLocaleString() }}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
     </div>
 </template>
 

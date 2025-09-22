@@ -6,13 +6,13 @@
                 v-model="email"
                 type="email"
                 placeholder="Email"
-                class="border p-2 w-full mb-2"
+                class="border p-2 w-full mb-2 rounded"
             />
             <input
                 v-model="password"
                 type="password"
                 placeholder="Password"
-                class="border p-2 w-full mb-2"
+                class="border p-2 w-full mb-2 rounded"
             />
             <button class="bg-blue-500 text-white px-4 py-2 rounded">
                 Register
