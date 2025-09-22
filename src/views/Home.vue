@@ -9,14 +9,26 @@
             Logout
         </button>
 
-        <div class="flex gap-2">
-            <input type="date" v-model="startDate" class="border p-2 rounded" />
-            <input type="date" v-model="endDate" class="border p-2 rounded" />
-            <button
-                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-            >
-                กรองข้อมูล
-            </button>
+        <div class="flex items-center justify-between gap-2 my-4">
+            <div class="flex gap-4">
+                <input
+                    type="date"
+                    v-model="startDate"
+                    class="border p-2 rounded"
+                />
+                <input
+                    type="date"
+                    v-model="endDate"
+                    class="border p-2 rounded"
+                />
+            </div>
+            <div>
+                <button
+                    class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                >
+                    กรองข้อมูล
+                </button>
+            </div>
         </div>
 
         <!-- ✅ Summary -->
@@ -29,26 +41,44 @@
             <canvas id="expenseChart"></canvas>
         </div>
 
-        <form @submit.prevent="addExpense" class="flex gap-2 mb-4">
-            <input
-                v-model="title"
-                type="text"
-                placeholder="Title"
-                class="border p-2 rounded flex-1"
-            />
-            <input
-                v-model.number="amount"
-                type="number"
-                placeholder="Amount"
-                class="border p-2 rounded w-32"
-            />
-            <select v-model="type" class="border p-2 rounded w-full mb-2">
-                <option>อาหารและน้ำดื่ม</option>
-                <option>ค่าเดินทาง</option>
-                <option>ค่าบริการรายเดือน</option>
-                <option>อื่นๆ</option>
-            </select>
-            <button class="bg-green-500 text-white px-4 rounded">Add</button>
+        <form
+            @submit.prevent="addExpense"
+            class="flex gap-2 my-4 items-center justify-between"
+        >
+            <div class="flex items-center justify-between gap-2 flex-1">
+                <div>
+                    <p>ชื่อรายการใช้จ่าย:</p>
+                    <input
+                        v-model="title"
+                        type="text"
+                        placeholder="Title"
+                        class="border p-2 rounded flex-1"
+                    />
+                </div>
+                <div>
+                    <p>จำนวนเงิน:</p>
+                    <input
+                        v-model.number="amount"
+                        type="number"
+                        placeholder="Amount"
+                        class="border p-2 rounded w-32"
+                    />
+                </div>
+                <div>
+                    <p>ประเภท:</p>
+                    <select v-model="type" class="border p-2 rounded mb-2">
+                        <option>อาหารและน้ำดื่ม</option>
+                        <option>ค่าเดินทาง</option>
+                        <option>ค่าบริการรายเดือน</option>
+                        <option>อื่นๆ</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <button class="bg-green-500 text-white px-4 rounded">
+                    Add
+                </button>
+            </div>
         </form>
 
         <table class="w-full border">
@@ -213,10 +243,6 @@ const addExpense = async () => {
     title.value = ''
     amount.value = 0
 }
-
-// const total = computed(() =>
-//     expenses.value.reduce((sum, e) => sum + Number(e.amount || 0), 0)
-// )
 
 // filter data
 const filteredExpenses = computed(() => {

@@ -1,7 +1,7 @@
 <template>
     <div class="max-w-sm mx-auto mt-20">
         <h2 class="text-xl font-bold mb-4">Login</h2>
-        <form @submit.prevent="login">
+        <form @submit.prevent="login" class="mb-4">
             <input
                 v-model="email"
                 type="email"
@@ -18,6 +18,9 @@
                 LOGIN
             </button>
         </form>
+        <button class="bg-transparent text-white px-4 py-2 rounded">
+            <router-link to="/register">REGISTER</router-link>
+        </button>
     </div>
 </template>
 

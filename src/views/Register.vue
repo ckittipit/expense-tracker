@@ -25,6 +25,7 @@
 import { ref } from 'vue'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../firebase/config'
+import router from '../router'
 
 const email = ref('')
 const password = ref('')
@@ -33,6 +34,7 @@ const register = async () => {
     try {
         await createUserWithEmailAndPassword(auth, email.value, password.value)
         alert('Register success!')
+        router.push('/')
     } catch (err) {
         alert(err.message)
     }
