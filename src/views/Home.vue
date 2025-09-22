@@ -1,6 +1,6 @@
 <template>
-    <div class="p-6 max-w-4xl mx-auto">
-        <div class="flex justify-between items-center mb-4">
+    <div class="">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center mb-4">
             <div>
                 <h1 class="text-2xl font-bold mb-4">Expense Dashboard</h1>
 
@@ -11,29 +11,38 @@
                     Logout
                 </button>
 
-                <div class="flex items-center justify-between gap-2 my-4">
-                    <div class="flex gap-4">
-                        <input
-                            type="date"
-                            v-model="startDate"
-                            class="border p-2 rounded"
-                        />
-                        <input
-                            type="date"
-                            v-model="endDate"
-                            class="border p-2 rounded"
-                        />
-                        <input
-                            type="month"
-                            v-model="filterMonth"
-                            class="border p-2 rounded"
-                            placeholder="Select Month"
-                        />
+                <div class="grid grid-cols-1 gap-2 my-4">
+                    <div class="flex gap-4 mb-2">
+                        <div>
+                            <label class="font-bold mr-2">Start Date:</label>
+                            <input
+                                type="date"
+                                v-model="startDate"
+                                class="border p-2 rounded"
+                            />
+                        </div>
+                        <div>
+                            <label class="font-bold mr-2">End Date:</label>
+                            <input
+                                type="date"
+                                v-model="endDate"
+                                class="border p-2 rounded"
+                            />
+                        </div>
+                        <div>
+                            <label class="font-bold mr-2">Month:</label>
+                            <input
+                                type="month"
+                                v-model="filterMonth"
+                                class="border p-2 rounded"
+                                placeholder="Select Month"
+                            />
+                        </div>
                     </div>
                     <div>
                         <button
                             @click="filterExpenses"
-                            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                            class="bg-green-400 text-white px-4 py-2 rounded hover:bg-green-600 m-2"
                         >
                             กรองข้อมูล
                         </button>
@@ -48,11 +57,18 @@
 
                 <div class="mb-6">
                     <ul>
-                        <li v-if="filteredExpenses.length != 0" class>
+                        <li
+                            v-if="filteredExpenses.length != 0"
+                            class="font-bold text-xl text-left mb-2"
+                        >
                             ยอดรวม: {{ totalAmount }} บาท
                         </li>
-                        <li v-for="e in filteredExpenses" :key="e.id">
-                            {{ e.type }} - {{ e.amount }} -
+                        <li
+                            v-for="e in filteredExpenses"
+                            :key="e.id"
+                            class="text-left"
+                        >
+                            {{ e.type }} - {{ e.amount }}บาท -
                             {{
                                 (e.createdAt instanceof Timestamp
                                     ? e.createdAt.toDate()
@@ -94,7 +110,7 @@
                             />
                         </div>
                         <div>
-                            <p>ประเภท:</p>
+                            <p class="mb-1">ประเภท:</p>
                             <select
                                 v-model="type"
                                 class="border p-2 rounded mb-2"
@@ -107,7 +123,9 @@
                         </div>
                     </div>
                     <div>
-                        <button class="bg-green-500 text-white px-4 rounded">
+                        <button
+                            class="bg-green-500 text-white px-4 rounded mt-4"
+                        >
                             Add
                         </button>
                     </div>
