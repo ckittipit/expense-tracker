@@ -34,7 +34,7 @@ const register = async () => {
     try {
         await createUserWithEmailAndPassword(auth, email.value, password.value)
         alert('Register success!')
-        router.push('/')
+        router.push('/home')
     } catch (err) {
         alert(err.message)
     }

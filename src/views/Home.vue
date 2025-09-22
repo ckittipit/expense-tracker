@@ -23,14 +23,44 @@
                             v-model="endDate"
                             class="border p-2 rounded"
                         />
+                        <input
+                            type="month"
+                            v-model="filterMonth"
+                            class="border p-2 rounded"
+                            placeholder="Select Month"
+                        />
                     </div>
                     <div>
                         <button
+                            @click="filterExpenses"
                             class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                         >
                             กรองข้อมูล
                         </button>
+                        <button
+                            @click="clearFilters"
+                            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                        >
+                            ล้างข้อมูล
+                        </button>
                     </div>
+                </div>
+
+                <div class="mb-6">
+                    <ul>
+                        <li v-if="filteredExpenses.length != 0" class>
+                            ยอดรวม: {{ totalAmount }} บาท
+                        </li>
+                        <li v-for="e in filteredExpenses" :key="e.id">
+                            {{ e.type }} - {{ e.amount }} -
+                            {{
+                                (e.createdAt instanceof Timestamp
+                                    ? e.createdAt.toDate()
+                                    : new Date(e.createdAt)
+                                ).toDateString()
+                            }}
+                        </li>
+                    </ul>
                 </div>
 
                 <!-- ✅ Summary -->
@@ -119,6 +149,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { auth, db } from '../firebase/config'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import {
+    doc,
+    setDoc,
     collection,
     query,
     where,
@@ -138,8 +170,6 @@ const expenses = ref([])
 const title = ref('')
 const amount = ref(0)
 const total = ref(0)
-const startDate = ref('')
-const endDate = ref('')
 const lastSnapshot = ref(0)
 const type = ref('ค่าอาหารและน้ำดื่ม')
 
@@ -148,7 +178,48 @@ let unsubscribeSnapshot = null
 let currentUid = null
 
 const filterMonth = ref('')
-const filterType = ref('')
+const filteredExpenses = ref([])
+const startDate = ref('')
+const endDate = ref('')
+const totalAmount = ref(0)
+// const filterType = ref('')
+
+const filterExpenses = () => {
+    const result = expenses.value.filter((e) => {
+        const date =
+            e.createdAt instanceof Timestamp
+                ? e.createdAt.toDate()
+                : new Date(e.createdAt)
+
+        // filter by month
+        let matchMonth = true
+        if (filterMonth.value) {
+            const [year, month] = filterMonth.value.split('-')
+            matchMonth =
+                date.getFullYear() === Number(year) &&
+                date.getMonth() + 1 === Number(month)
+        }
+
+        // filter by startDate / endDate
+        let matchRange = true
+        if (startDate.value) matchRange = date >= new Date(startDate.value)
+        if (endDate.value)
+            matchRange = matchRange && date <= new Date(endDate.value)
+
+        return matchMonth && matchRange
+    })
+
+    filteredExpenses.value = result
+    totalAmount.value = result.reduce((sum, e) => sum + e.amount, 0)
+}
+
+const clearFilters = () => {
+    filterMonth.value = ''
+    startDate.value = ''
+    endDate.value = ''
+    filteredExpenses.value = []
+    totalAmount.value = 0
+}
 
 // ฟังก์ชันตั้ง listener
 const startSnapshotListenerForUser = (uid) => {
@@ -219,15 +290,15 @@ const renderChart = () => {
 }
 
 // chart data
-const pieData = computed(() => ({
-    labels: Object.keys(groupedByType.value),
-    datasets: [
-        {
-            data: Object.values(groupedByType.value),
-            backgroundColor: ['#60a5fa', '#34d399', '#fbbf24', '#f87171'],
-        },
-    ],
-}))
+// const pieData = computed(() => ({
+//     labels: Object.keys(groupedByType.value),
+//     datasets: [
+//         {
+//             data: Object.values(groupedByType.value),
+//             backgroundColor: ['#60a5fa', '#34d399', '#fbbf24', '#f87171'],
+//         },
+//     ],
+// }))
 
 // add expense
 const addExpense = async () => {
@@ -237,7 +308,12 @@ const addExpense = async () => {
         : console.log(auth.currentUser)
 
     try {
-        await addDoc(collection(db, 'expenses'), {
+        // สร้าง reference ของ collection "expenses"
+        const colRef = collection(db, 'expenses')
+
+        const docRef = doc(colRef)
+        await setDoc(docRef, {
+            id: docRef.id,
             title: title.value,
             amount: Number(amount.value),
             type: type.value,
@@ -254,39 +330,27 @@ const addExpense = async () => {
     amount.value = 0
 }
 
-// filter data
-const filteredExpenses = computed(() => {
-    return expenses.value.filter((e) => {
-        const matchMonth = filterMonth.value
-            ? new Date(e.createdAt.seconds * 1000).getMonth() + 1 ===
-              Number(filterMonth.value)
-            : true
-        const matchType = filterType.value ? e.type === filterType.value : true
-        return matchMonth && matchType
-    })
-})
-
-// group by type
-const groupedByType = computed(() => {
-    const map = {}
-    filteredExpenses.value.forEach((e) => {
-        map[e.type] = (map[e.type] || 0) + Number(e.amount)
-    })
-    return map
-})
+// // group by type
+// const groupedByType = computed(() => {
+//     const map = {}
+//     filteredExpenses.value.forEach((e) => {
+//         map[e.type] = (map[e.type] || 0) + Number(e.amount)
+//     })
+//     return map
+// })
 
 // group by month
-const groupedByMonth = computed(() => {
-    const map = {}
-    filteredExpenses.value.forEach((e) => {
-        const month = new Date(e.createdAt.seconds * 1000).toLocaleString(
-            'en',
-            { month: 'short' }
-        )
-        map[month] = (map[month] || 0) + Number(e.amount)
-    })
-    return map
-})
+// const groupedByMonth = computed(() => {
+//     const map = {}
+//     filteredExpenses.value.forEach((e) => {
+//         const month = new Date(e.createdAt.seconds * 1000).toLocaleString(
+//             'en',
+//             { month: 'short' }
+//         )
+//         map[month] = (map[month] || 0) + Number(e.amount)
+//     })
+//     return map
+// })
 
 // fetch expenses
 onMounted(() => {
