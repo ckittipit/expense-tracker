@@ -17,7 +17,7 @@
                             <label class="font-bold mr-2">Start Date:</label>
                             <input
                                 type="date"
-                                v-model="startDate"
+                                v-model="filterStartDate"
                                 class="border p-2 rounded"
                             />
                         </div>
@@ -25,7 +25,7 @@
                             <label class="font-bold mr-2">End Date:</label>
                             <input
                                 type="date"
-                                v-model="endDate"
+                                v-model="filterEndDate"
                                 class="border p-2 rounded"
                             />
                         </div>
@@ -47,7 +47,7 @@
                             กรองข้อมูล
                         </button>
                         <button
-                            @click="clearFilters"
+                            @click="resetTable"
                             class="bg-red-500 text-white px-4 py-2 rounded hover:bg-green-600"
                         >
                             ล้างข้อมูล
@@ -56,17 +56,18 @@
                 </div>
 
                 <div class="mb-6">
-                    <ul>
+                    <ul v-if="!noDataFound || !filterNotFound">
                         <li
                             v-if="filteredExpenses.length != 0"
                             class="font-bold text-xl text-left mb-2"
                         >
-                            ยอดรวม: {{ totalAmount }} บาท
+                            ยอดรวม: {{ totalFiltered }} บาท
                         </li>
                         <li
                             v-for="e in filteredExpenses"
                             :key="e.id"
                             class="text-left"
+                            :style="getTypeStyle(e.type)"
                         >
                             {{ e.type }} - {{ e.amount }}บาท -
                             {{
@@ -77,6 +78,18 @@
                             }}
                         </li>
                     </ul>
+                    <div
+                        v-if="filterNotFound"
+                        class="text-red-500 font-bold text-xl"
+                    >
+                        Choose Filter Ghon Noh.
+                    </div>
+                    <div
+                        v-if="noDataFound"
+                        class="text-red-500 font-bold text-xl"
+                    >
+                        No Data Found Jaa, Ha Mai Noh.
+                    </div>
                 </div>
 
                 <!-- ✅ Summary -->
@@ -140,11 +153,18 @@
                             <th class="border p-2">Created At</th>
                         </tr>
                     </thead>
+                    <!-- <pre>{{ expenses }}</pre> -->
                     <tbody>
-                        <tr v-for="expense in expenses" :key="expense.id">
+                        <tr
+                            v-for="expense in expenses"
+                            :key="expense.id"
+                            :style="getTypeStyle(expense.type)"
+                        >
                             <td class="border p-2">{{ expense.title }}</td>
                             <td class="border p-2">{{ expense.amount }}</td>
-                            <td class="border p-2">{{ expense.type }}</td>
+                            <td class="border p-2">
+                                {{ expense.type }}
+                            </td>
                             <td class="border p-2">
                                 {{
                                     expense.createdAt?.toDate().toLocaleString()
@@ -163,12 +183,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { auth, db } from '../firebase/config'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { signOut } from 'firebase/auth'
 import {
     doc,
     setDoc,
+    getDocs,
     collection,
     query,
     where,
@@ -178,101 +199,59 @@ import {
     serverTimestamp,
     Timestamp,
 } from 'firebase/firestore'
+
 import { Chart, registerables } from 'chart.js'
+
 Chart.register(...registerables)
 
 let chartInstance = null
 
 // state
-const expenses = ref([])
+const expenses = ref([]) // ข้อมูลที่แสดงบนตาราง
+const allExpenses = ref([]) // เก็บข้อมูลจริงทั้งหมดจาก Firestore
 const title = ref('')
 const amount = ref(0)
-const total = ref(0)
-const lastSnapshot = ref(0)
+const total = ref(0) // total ของข้อมูลที่กรองแล้ว
 const type = ref('ค่าอาหารและน้ำดื่ม')
 
 let removeAuthListener = null
 let unsubscribeSnapshot = null
 let currentUid = null
 
-const filterMonth = ref('')
-const filteredExpenses = ref([])
-const startDate = ref('')
-const endDate = ref('')
+const filteredExpenses = ref([]) // ข้อมูลหลัง filter
+const totalFiltered = ref(0)
+const filterStartDate = ref(null)
+const filterEndDate = ref(null)
+const filterMonth = ref(null) // 'YYYY-MM'
 const totalAmount = ref(0)
+const filterNotFound = ref(false)
+const noDataFound = ref(false)
 // const filterType = ref('')
 
 const filterExpenses = () => {
-    const result = expenses.value.filter((e) => {
-        const date =
-            e.createdAt instanceof Timestamp
-                ? e.createdAt.toDate()
-                : new Date(e.createdAt)
+    filterNotFound.value = false
 
-        // filter by month
-        let matchMonth = true
-        if (filterMonth.value) {
-            const [year, month] = filterMonth.value.split('-')
-            matchMonth =
-                date.getFullYear() === Number(year) &&
-                date.getMonth() + 1 === Number(month)
-        }
-
-        // filter by startDate / endDate
-        let matchRange = true
-        if (startDate.value) matchRange = date >= new Date(startDate.value)
-        if (endDate.value)
-            matchRange = matchRange && date <= new Date(endDate.value)
-
-        return matchMonth && matchRange
-    })
-
-    filteredExpenses.value = result
-    totalAmount.value = result.reduce((sum, e) => sum + e.amount, 0)
+    if (filterStartDate.value && filterEndDate.value) {
+        filterByDate()
+    } else if (filterMonth.value) {
+        filterByMonth()
+    } else {
+        filterNotFound.value = true
+        return
+    }
 }
 
 const clearFilters = () => {
     filterMonth.value = ''
-    startDate.value = ''
-    endDate.value = ''
+    filterStartDate.value = ''
+    filterEndDate.value = ''
     filteredExpenses.value = []
     totalAmount.value = 0
 }
 
-// ฟังก์ชันตั้ง listener
-const startSnapshotListenerForUser = (uid) => {
-    // หากเคยสมัคร listener ก่อนให้ยกเลิก
-    if (unsubscribeSnapshot) {
-        unsubscribeSnapshot()
-        unsubscribeSnapshot = null
-    }
-
-    currentUid = uid
-    // Query แบบกรองตาม uid — ปลอดภัยกว่า (แสดงเฉพาะของ user นี้)
-    // เริ่มไม่ใส่ orderBy ก่อน เพื่อให้แน่ใจว่าเอกสารจะถูกส่งกลับ
-    const q = query(
-        collection(db, 'expenses'),
-        where('uid', '==', auth.currentUser?.uid),
-        orderBy('createdAt', 'desc')
-    )
-
-    onSnapshot(q, (snapshot) => {
-        const list = []
-        let sum = 0
-        snapshot.forEach((doc) => {
-            const data = doc.data()
-            list.push({ id: doc.id, ...data })
-            sum += data.amount
-        })
-        expenses.value = list
-        total.value = sum
-        renderChart()
-    })
-}
-
 const renderChart = () => {
     const ctx = document.getElementById('expenseChart')
-    console.log('chartInstance: ', chartInstance)
+
     if (chartInstance) chartInstance.destroy()
 
     const categories = [
@@ -307,23 +286,33 @@ const renderChart = () => {
     })
 }
 
-// chart data
-// const pieData = computed(() => ({
-//     labels: Object.keys(groupedByType.value),
-//     datasets: [
-//         {
-//             data: Object.values(groupedByType.value),
-//             backgroundColor: ['#60a5fa', '#34d399', '#fbbf24', '#f87171'],
-//         },
-//     ],
-// }))
+const getTypeStyle = (type) => {
+    let color = ''
+    switch (type) {
+        case 'อาหารและน้ำดื่ม':
+            color = '#3b82f6' // blue
+            break
+        case 'ค่าเดินทาง':
+            color = '#10b981' // green
+            break
+        case 'ค่าบริการรายเดือน':
+            color = '#f59e0b' // yellow
+            break
+        case 'อื่นๆ':
+            color = '#ef4444' // red
+            break
+        default:
+            color = '#000000' // black
+    }
+    return `color: ${color};`
+}
 
 // add expense
 const addExpense = async () => {
     if (!title.value || !amount.value) return
     !auth.currentUser
         ? alert('You must be logged in to add an expense.')
-        : console.log(auth.currentUser)
+        : console.log('User is logged in, proceed to add expense.')
 
     try {
         // สร้าง reference ของ collection "expenses"
@@ -337,9 +326,8 @@ const addExpense = async () => {
             type: type.value,
             createdAt: serverTimestamp(),
             clientCreatedAt: Timestamp.now(),
-            uid: auth.currentUser?.uid ?? null,
+            uid: auth.currentUser?.uid,
         })
-        console.log('document added id:', docRef.id)
     } catch (error) {
         console.log('Error adding expense: ', error)
     }
@@ -348,44 +336,127 @@ const addExpense = async () => {
     amount.value = 0
 }
 
-// // group by type
-// const groupedByType = computed(() => {
-//     const map = {}
-//     filteredExpenses.value.forEach((e) => {
-//         map[e.type] = (map[e.type] || 0) + Number(e.amount)
-//     })
-//     return map
-// })
+const startSnapshotListenerForUser = (uid) => {
+    const q = query(
+        collection(db, 'expenses'),
+        where('uid', '==', uid) // 👈 ต้องมี ไม่งั้นอ่านไม่ได้
+    )
 
-// group by month
-// const groupedByMonth = computed(() => {
-//     const map = {}
-//     filteredExpenses.value.forEach((e) => {
-//         const month = new Date(e.createdAt.seconds * 1000).toLocaleString(
-//             'en',
-//             { month: 'short' }
-//         )
-//         map[month] = (map[month] || 0) + Number(e.amount)
-//     })
-//     return map
-// })
+    return onSnapshot(q, (snapshot) => {
+        const list = []
+        let sum = 0
+        snapshot.forEach((doc) => {
+            const data = doc.data()
+            list.push({ id: doc.id, ...data })
+            // sum += data.amount
+        })
+        expenses.value = list
+        allExpenses.value = list
+        total.value = calcTotal()
+
+        renderChart()
+        resetTableIfNewMonth()
+    })
+}
+
+// กรองตามช่วงวันที่
+const filterByDate = () => {
+    if (!filterStartDate.value || !filterEndDate.value) return
+
+    noDataFound.value = false
+
+    const start = new Date(filterStartDate.value)
+    const end = new Date(filterEndDate.value)
+    end.setHours(23, 59, 59) // ครบวัน
+
+    filteredExpenses.value = expenses.value.filter((e) => {
+        const created = e.createdAt.toDate
+            ? e.createdAt.toDate()
+            : new Date(e.createdAt)
+        return created >= start && created <= end
+    })
+
+    totalFiltered.value = filteredExpenses.value.reduce(
+        (acc, cur) => acc + cur.amount,
+        0
+    )
+
+    if (filteredExpenses.value.length === 0) {
+        noDataFound.value = true
+    } else {
+        noDataFound.value = false
+    }
+}
+
+// กรองตามเดือน/ปี
+const filterByMonth = () => {
+    if (!filterMonth.value) return
+
+    noDataFound.value = false
+
+    const [year, month] = filterMonth.value.split('-')
+    filteredExpenses.value = expenses.value.filter((e) => {
+        // แปลง createdAt จาก Firestore Timestamp เป็น JS Date
+        const created = e.createdAt.toDate
+            ? e.createdAt.toDate()
+            : new Date(e.createdAt)
+        return (
+            created.getFullYear() === +year && created.getMonth() === +month - 1
+        )
+    })
+
+    totalFiltered.value = filteredExpenses.value.reduce(
+        (acc, cur) => acc + cur.amount,
+        0
+    )
+
+    if (filteredExpenses.value.length === 0) {
+        noDataFound.value = true
+    } else {
+        noDataFound.value = false
+    }
+}
+
+// ฟังก์ชันคำนวณ total
+const calcTotal = () => {
+    return (total.value = expenses.value.reduce(
+        (sum, e) => sum + (e.amount || 0),
+        0
+    ))
+}
+
+// ฟังก์ชันล้างตารางทุกวันที่ 1
+const resetTableIfNewMonth = () => {
+    const today = new Date()
+    if (today.getDate() === 1) {
+        expenses.value = [] // เคลียร์แค่ UI
+    } else {
+        expenses.value = allExpenses.value
+    }
+}
+
+const resetTable = () => {
+    // filteredExpenses.value = [...expenses.value]
+    // totalFiltered.value = expenses.value.reduce(
+    //     (acc, cur) => acc + cur.amount,
+    //     0
+    // )
+    filteredExpenses.value = []
+    totalFiltered.value = 0
+    filterStartDate.value = null
+    filterEndDate.value = null
+    filterMonth.value = null
+}
 
 // fetch expenses
 onMounted(() => {
-    // รอ auth ready ก่อนตั้ง listener — ถ้า user ยัง login อยู่ onAuthStateChanged จะเรียกทันที
-    removeAuthListener = onAuthStateChanged(auth, (user) => {
-        // console.log('onAuthStateChanged', user && user.uid)
-        if (user) {
-            startSnapshotListenerForUser(user.uid)
-        } else {
-            // หาก logout: clear data และ unsubscribe
-            if (unsubscribeSnapshot) {
-                unsubscribeSnapshot()
-                unsubscribeSnapshot = null
-            }
-            expenses.value = []
-        }
-    })
+    const user = auth.currentUser
+    if (user) {
+        console.log('✅ User logged in')
+        startSnapshotListenerForUser(user.uid)
+    } else {
+        console.log('❌ No user')
+    }
 })
 
 onUnmounted(() => {
