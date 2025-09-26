@@ -1,20 +1,24 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "expenses",
-      "queryScope": "COLLECTION",
-      "fields": [
+    "indexes": [
         {
-          "fieldPath": "uid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+            "collectionGroup": "expenses",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "uid",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                },
+                {
+                    "fieldPath": "type",
+                    "order": "ASCENDING"
+                }
+            ],
+            "density": "SPARSE_ALL"
         }
-      ],
-      "density": "SPARSE_ALL"
-    }
-  ],
-  "fieldOverrides": []
+    ],
+    "fieldOverrides": []
 }
